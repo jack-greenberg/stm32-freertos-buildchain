@@ -4,14 +4,14 @@ file(GLOB C_SOURCE
     main.c
 )
 
-include_directories(inc)
-
 set_source_files_properties(${C_SOURCE}
     PROPERTIES COMPILE_FLAGS ${STM32_DEFINES}
 )
 
-# This tells CMake to produce a file called stm32-proj.elf that we will upload to the chip
-add_executable(${PROJECT_NAME}.elf ${C_SOURCE})
+add_executable(${PROJECT_NAME}.elf
+    ${C_SOURCE}
+    ${EXTERNAL_EXECUTABLES}
+)
 
 if (EXTERNAL_DEPENDENCIES)
     add_dependencies(${PROJECT_NAME}.elf
@@ -38,3 +38,4 @@ add_custom_target ( ${PROJECT_NAME}.bin ALL
 
 add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
     COMMAND ${CMAKE_SIZE} --format=berkeley "${PROJECT_NAME}.elf")
+

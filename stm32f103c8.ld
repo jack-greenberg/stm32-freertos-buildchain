@@ -1,151 +1,107 @@
-/* Entry Point */
-ENTRY(Reset_Handler)
+/*
+ * This file is part of the libopencm3 project.
+ *
+ * Copyright (C) 2009 Uwe Hermann <uwe@hermann-uwe.de>
+ *
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-/* Highest address of the user mode stack */
-_estack = 0x20005000;    /* end of RAM */
-
-_Min_Heap_Size = 0;      /* required amount of heap  */
-_Min_Stack_Size = 0x400; /* required amount of stack */
-
-/* Memories definition */
 MEMORY
 {
-  RAM (xrw)		: ORIGIN = 0x20000000, LENGTH = 20K
-  ROM (rx)		: ORIGIN = 0x8000000, LENGTH = 64K
+    ram (rwx)            : ORIGIN = 0x20000000, LENGTH = 20K
+    rom (rx)             : ORIGIN = 0x8000000, LENGTH = 64K
 }
 
-/* Sections */
+/* Enforce emmition of the vector table. */
+EXTERN (vector_table)
+
+/* Define the entry point of the output file. */
+ENTRY(reset_handler)
+
+/* Define sections. */
 SECTIONS
 {
-  /* The startup code into ROM memory */
-  .isr_vector :
-  {
-    . = ALIGN(4);
-    KEEP(*(.isr_vector)) /* Startup code */
-    . = ALIGN(4);
-  } >ROM
+	.text : {
+		*(.vectors)	/* Vector table */
+		*(.text*)	/* Program code */
+		. = ALIGN(4);
+		*(.rodata*)	/* Read-only data */
+		. = ALIGN(4);
+	} >rom
 
-  /* The program code and other data into ROM memory */
-  .text :
-  {
-    . = ALIGN(4);
-    *(.text)           /* .text sections (code) */
-    *(.text*)          /* .text* sections (code) */
-    *(.glue_7)         /* glue arm to thumb code */
-    *(.glue_7t)        /* glue thumb to arm code */
-    *(.eh_frame)
+	/* C++ Static constructors/destructors, also used for __attribute__
+	 * ((constructor)) and the likes */
+	.preinit_array : {
+		. = ALIGN(4);
+		__preinit_array_start = .;
+		KEEP (*(.preinit_array))
+		__preinit_array_end = .;
+	} >rom
+	.init_array : {
+		. = ALIGN(4);
+		__init_array_start = .;
+		KEEP (*(SORT(.init_array.*)))
+		KEEP (*(.init_array))
+		__init_array_end = .;
+	} >rom
+	.fini_array : {
+		. = ALIGN(4);
+		__fini_array_start = .;
+		KEEP (*(.fini_array))
+		KEEP (*(SORT(.fini_array.*)))
+		__fini_array_end = .;
+	} >rom
 
-    KEEP (*(.init))
-    KEEP (*(.fini))
+	/*
+	 * Another section used by C++ stuff, appears when using newlib with
+	 * 64bit (long long) printf support
+	 */
+	.ARM.extab : {
+		*(.ARM.extab*)
+	} >rom
+	.ARM.exidx : {
+		__exidx_start = .;
+		*(.ARM.exidx*)
+		__exidx_end = .;
+	} >rom
 
-    . = ALIGN(4);
-    _etext = .;        /* define a global symbols at end of code */
-  } >ROM
+	. = ALIGN(4);
+	_etext = .;
 
-  /* Constant data into ROM memory*/
-  .rodata :
-  {
-    . = ALIGN(4);
-    *(.rodata)         /* .rodata sections (constants, strings, etc.) */
-    *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
-    . = ALIGN(4);
-  } >ROM
+	.data : {
+		_data = .;
+		*(.data*)	/* Read-write initialized data */
+		. = ALIGN(4);
+		_edata = .;
+	} >ram AT >rom
+	_data_loadaddr = LOADADDR(.data);
 
-  .ARM.extab   : { 
-  	. = ALIGN(4);
-  	*(.ARM.extab* .gnu.linkonce.armextab.*)
-  	. = ALIGN(4);
-  } >ROM
-  
-  .ARM : {
-    . = ALIGN(4);
-    __exidx_start = .;
-    *(.ARM.exidx*)
-    __exidx_end = .;
-    . = ALIGN(4);
-  } >ROM
+	.bss : {
+		*(.bss*)	/* Read-write zero initialized data */
+		*(COMMON)
+		. = ALIGN(4);
+		_ebss = .;
+	} >ram
 
-  .preinit_array     :
-  {
-    . = ALIGN(4);
-    PROVIDE_HIDDEN (__preinit_array_start = .);
-    KEEP (*(.preinit_array*))
-    PROVIDE_HIDDEN (__preinit_array_end = .);
-    . = ALIGN(4);
-  } >ROM
-  
-  .init_array :
-  {
-    . = ALIGN(4);
-    PROVIDE_HIDDEN (__init_array_start = .);
-    KEEP (*(SORT(.init_array.*)))
-    KEEP (*(.init_array*))
-    PROVIDE_HIDDEN (__init_array_end = .);
-    . = ALIGN(4);
-  } >ROM
-  
-  .fini_array :
-  {
-    . = ALIGN(4);
-    PROVIDE_HIDDEN (__fini_array_start = .);
-    KEEP (*(SORT(.fini_array.*)))
-    KEEP (*(.fini_array*))
-    PROVIDE_HIDDEN (__fini_array_end = .);
-    . = ALIGN(4);
-  } >ROM
+	/*
+	 * The .eh_frame section appears to be used for C++ exception handling.
+	 * You may need to fix this if you're using C++.
+	 */
+	/DISCARD/ : { *(.eh_frame) }
 
-  /* Used by the startup to initialize data */
-  _sidata = LOADADDR(.data);
-
-  /* Initialized data sections into RAM memory */
-  .data : 
-  {
-    . = ALIGN(4);
-    _sdata = .;        /* create a global symbol at data start */
-    *(.data)           /* .data sections */
-    *(.data*)          /* .data* sections */
-
-    . = ALIGN(4);
-    _edata = .;        /* define a global symbol at data end */
-  } >RAM AT> ROM
-
-  
-  /* Uninitialized data section into RAM memory */
-  . = ALIGN(4);
-  .bss :
-  {
-    /* This is used by the startup in order to initialize the .bss secion */
-    _sbss = .;         /* define a global symbol at bss start */
-    __bss_start__ = _sbss;
-    *(.bss)
-    *(.bss*)
-    *(COMMON)
-
-    . = ALIGN(4);
-    _ebss = .;         /* define a global symbol at bss end */
-    __bss_end__ = _ebss;
-  } >RAM
-
-  /* User_heap_stack section, used to check that there is enough RAM left */
-  ._user_heap_stack :
-  {
-    . = ALIGN(8);
-    PROVIDE ( end = . );
-    PROVIDE ( _end = . );
-    . = . + _Min_Heap_Size;
-    . = . + _Min_Stack_Size;
-    . = ALIGN(8);
-  } >RAM
-
-  
-
-  /* Remove information from the compiler libraries */
-  /DISCARD/ :
-  {
-    libc.a ( * )
-    libm.a ( * )
-    libgcc.a ( * )
-  }
-
-  .ARM.attributes 0 : { *(.ARM.attributes) }
+	. = ALIGN(4);
+	end = .;
 }
+
+PROVIDE(_stack = ORIGIN(ram) + LENGTH(ram));
