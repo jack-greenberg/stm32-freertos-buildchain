@@ -1,4 +1,4 @@
-set(FREERTOS_DIR ${CMAKE_SOURCE_DIR}/inc/freertos_kernel)
+set(FREERTOS_DIR ${CMAKE_SOURCE_DIR}/lib/freertos_kernel)
 
 # Make sure that git submodule is initialized and updated
 if (NOT EXISTS "${FREERTOS_DIR}")
@@ -11,7 +11,7 @@ set(FREERTOS_INC_DIR
 )
 
 include_directories(
-    # ${CMAKE_SOURCE_DIR}/config # That's for including the FreeRTOSConfig.h
+    ${CMAKE_SOURCE_DIR}/config # That's for including the FreeRTOSConfig.h
     ${CMAKE_SOURCE_DIR}
     ${FREERTOS_INC_DIR}
 )
