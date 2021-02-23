@@ -12,7 +12,6 @@ set(FREERTOS_INC_DIR
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/config # That's for including the FreeRTOSConfig.h
-    ${CMAKE_SOURCE_DIR}
     ${FREERTOS_INC_DIR}
 )
 

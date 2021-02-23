@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.2)
 
+include_directories(inc)
+
 file(GLOB C_SOURCE
     main.c
+    opencm3.c
 )
 
 set_source_files_properties(${C_SOURCE}
@@ -12,6 +15,8 @@ add_executable(${PROJECT_NAME}.elf
     ${C_SOURCE}
     ${EXTERNAL_EXECUTABLES}
 )
+
+message(STATUS "EXTERNAL_EXECUTABLES: ${EXTERNAL_EXECUTABLES}")
 
 if (EXTERNAL_DEPENDENCIES)
     add_dependencies(${PROJECT_NAME}.elf
@@ -35,7 +40,5 @@ add_custom_target ( ${PROJECT_NAME}.bin ALL
     COMMAND ${CMAKE_OBJCOPY} -O binary ${PROJECT_NAME}.elf ${PROJECT_NAME}.bin
     COMMENT "Generating ${PROJECT_NAME}.bin"
 )
-
 add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
     COMMAND ${CMAKE_SIZE} --format=berkeley "${PROJECT_NAME}.elf")
-
